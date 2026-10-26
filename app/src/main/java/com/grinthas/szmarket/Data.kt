@@ -33,9 +33,15 @@ data class Lot(
     val buyoutPrice: Long,
     val endTime: Instant,
     val level: Int?,
+    val quality: Int?,
 )
 
-data class Sale(val amount: Int, val price: Long, val time: Instant)
+data class Sale(val amount: Int, val price: Long, val time: Instant, val level: Int?, val quality: Int?)
+
+/** Качество артефакта (поле qlt в additional). */
+val QUALITIES = listOf("Обычный", "Необычный", "Особый", "Редкий", "Исключительный", "Легендарный")
+
+private fun JSONObject?.intOrNull(key: String): Int? = this?.takeIf { it.has(key) && !it.isNull(key) }?.optInt(key)
 
 class ApiException(message: String) : Exception(message)
 
@@ -126,7 +132,7 @@ class Api(private val store: Store) {
     }
 
     /** sort: time_created | time_left | current_price | buyout_price; order: asc | desc. */
-    fun lots(item: String, sort: String = "buyout_price", order: String = "asc", limit: Int = 100): Pair<Int, List<Lot>> {
+    fun lots(item: String, sort: String = "buyout_price", order: String = "asc", limit: Int = 200): Pair<Int, List<Lot>> {
         val o = get("auction/$item/lots?limit=$limit&sort=$sort&order=$order&additional=true")
         val arr = o.optJSONArray("lots") ?: JSONArray()
         val lots = (0 until arr.length()).map { i ->
@@ -138,17 +144,19 @@ class Api(private val store: Store) {
                 currentPrice = if (l.has("currentPrice") && !l.isNull("currentPrice")) l.getLong("currentPrice") else null,
                 buyoutPrice = l.optLong("buyoutPrice"),
                 endTime = Instant.parse(l.getString("endTime")),
-                level = add?.takeIf { it.has("ptn") }?.optInt("ptn"),
+                level = add.intOrNull("ptn"),
+                quality = add.intOrNull("qlt"),
             )
         }
         return o.optInt("total", lots.size) to lots
     }
 
-    fun history(item: String, limit: Int = 100): List<Sale> {
-        val arr = get("auction/$item/history?limit=$limit").optJSONArray("prices") ?: JSONArray()
+    fun history(item: String, limit: Int = 200): List<Sale> {
+        val arr = get("auction/$item/history?limit=$limit&additional=true").optJSONArray("prices") ?: JSONArray()
         return (0 until arr.length()).map { i ->
             val s = arr.getJSONObject(i)
-            Sale(s.optInt("amount", 1), s.optLong("price"), Instant.parse(s.getString("time")))
+            val add = s.optJSONObject("additional")
+            Sale(s.optInt("amount", 1), s.optLong("price"), Instant.parse(s.getString("time")), add.intOrNull("ptn"), add.intOrNull("qlt"))
         }
     }
 }

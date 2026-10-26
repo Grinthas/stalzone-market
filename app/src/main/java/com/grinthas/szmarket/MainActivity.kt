@@ -93,6 +93,15 @@ fun rarityColor(color: String): Color = when (color) {
     else -> Color(0xFFD5D8E0)
 }
 
+fun qualityColor(q: Int): Color = when (q) {
+    0 -> Color(0xFFD5D8E0)
+    1 -> Color(0xFF8FDB8A)
+    2 -> Color(0xFF6FA8FF)
+    3 -> Color(0xFFB38CFF)
+    4 -> Color(0xFFF08A9A)
+    else -> Color(0xFFE8C14A)
+}
+
 fun money(v: Long): String =
     v.toString().reversed().chunked(3).joinToString(" ").reversed() + "₽"
 
@@ -382,15 +391,19 @@ class MainActivity : ComponentActivity() {
     private fun DetailScreen(item: Item) {
         var sort by remember { mutableIntStateOf(0) }
         var reload by remember { mutableIntStateOf(0) }
+        // null — все качества; иначе индекс в QUALITIES. Только для артефактов.
+        var quality by remember(item.id) { mutableStateOf<Int?>(null) }
+        val isArtefact = item.category == "artefact"
         val lots by produceState<Result<Pair<Int, List<Lot>>>?>(null, item.id, sort, version, reload) {
             value = null
             value = withContext(Dispatchers.IO) {
                 runCatching { api.lots(item.id, sorts[sort].second, sorts[sort].third) }
             }
         }
-        val sales by produceState<List<Sale>?>(null, item.id, version, reload) {
+        val allSales by produceState<List<Sale>?>(null, item.id, version, reload) {
             value = withContext(Dispatchers.IO) { runCatching { api.history(item.id) }.getOrNull() }
         }
+        val sales = allSales?.filter { quality == null || it.quality == quality }
 
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item {
@@ -400,6 +413,23 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (!store.hasKeys) item { KeysBanner() }
+            if (isArtefact) {
+                item {
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(selected = quality == null, onClick = { quality = null }, label = { Text("Все") })
+                        QUALITIES.forEachIndexed { i, name ->
+                            FilterChip(
+                                selected = quality == i,
+                                onClick = { quality = i },
+                                label = { Text(name, color = qualityColor(i)) },
+                            )
+                        }
+                    }
+                }
+            }
             sales?.takeIf { it.size >= 2 }?.let { list ->
                 item {
                     Card {
@@ -423,8 +453,16 @@ class MainActivity : ComponentActivity() {
                 l.isFailure -> item { Message(l.exceptionOrNull()?.message ?: "Ошибка", "Повторить") { reload++ } }
                 l.getOrThrow().second.isEmpty() -> item { Message("Сейчас нет лотов на аукционе.") }
                 else -> {
-                    val (total, list) = l.getOrThrow()
-                    item { Text("Всего лотов: $total", color = Muted) }
+                    val (total, all) = l.getOrThrow()
+                    val list = all.filter { quality == null || it.quality == quality }
+                    item {
+                        Text(
+                            if (quality == null) "Всего лотов: $total"
+                            else "${QUALITIES[quality!!]}: ${list.size} из ${all.size} загруженных",
+                            color = Muted,
+                        )
+                    }
+                    if (list.isEmpty()) item { Message("Нет лотов такого качества.") }
                     items(list) { LotCard(item, it) }
                 }
             }
@@ -433,7 +471,9 @@ class MainActivity : ComponentActivity() {
                 item {
                     Card {
                         list.take(30).forEach { s ->
-                            InfoRow("${dateFmt.format(s.time)} · ${s.amount} шт.", money(s.price))
+                            val q = s.quality?.let { " · ${QUALITIES.getOrElse(it) { "?" }}" }.orEmpty()
+                            val lvl = s.level?.takeIf { it > 0 }?.let { " +$it" }.orEmpty()
+                            InfoRow("${dateFmt.format(s.time)} · ${s.amount} шт.$q$lvl", money(s.price))
                         }
                     }
                 }
@@ -489,7 +529,12 @@ class MainActivity : ComponentActivity() {
                     lot.level?.takeIf { it > 0 }?.let { append(" +$it") }
                     if (lot.amount > 1) append(" ×${lot.amount}")
                 }
-                Text(item.name + suffix, color = rarityColor(item.color), fontSize = 17.sp)
+                Column {
+                    Text(item.name + suffix, color = rarityColor(item.color), fontSize = 17.sp)
+                    lot.quality?.let { q ->
+                        Text(QUALITIES.getOrElse(q) { "Качество $q" }, color = qualityColor(q), fontSize = 13.sp)
+                    }
+                }
             }
             Spacer(Modifier.height(4.dp))
             InfoRow("Время", timeLeft(lot.endTime))
