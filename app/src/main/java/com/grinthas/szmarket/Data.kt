@@ -41,7 +41,7 @@ class ApiException(message: String) : Exception(message)
 
 private const val DB = "https://raw.githubusercontent.com/EXBO-Studio/stalzone-database/main"
 private const val OAUTH = "https://exbo.net/oauth/token"
-const val DEFAULT_API = "https://eapi.stalcraft.net"
+const val DEFAULT_API = "https://eapi.stalzone.com"
 
 private fun http(url: String, method: String = "GET", body: String? = null, token: String? = null): String {
     val c = URL(url).openConnection() as HttpURLConnection

@@ -1,7 +1,7 @@
 # Stalzone Market
 
 Android-приложение для отслеживания цен на аукционе Stalzone.
-Данные берутся из [официального API EXBO](https://eapi.stalcraft.net/),
+Данные берутся из [официального API EXBO](https://eapi.stalzone.com/docs),
 названия и иконки — из открытой базы [EXBO-Studio/stalzone-database](https://github.com/EXBO-Studio/stalzone-database).
 
 ## Возможности
@@ -15,7 +15,7 @@ Android-приложение для отслеживания цен на аук�
 ## Ключи API
 
 Нужны собственные `client_id` и `client_secret`: зарегистрируйте приложение в EXBO
-([Application Management](https://eapi.stalcraft.net/registration.html)) и дождитесь одобрения.
+через Telegram-бота «Stalzone API» (`/newapp`) и дождитесь одобрения.
 Ключи вводятся в приложении на вкладке «Настройки» и хранятся только на телефоне —
 в репозитории их нет.
 

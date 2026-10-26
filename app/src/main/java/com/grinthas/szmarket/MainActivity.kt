@@ -570,7 +570,7 @@ class MainActivity : ComponentActivity() {
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     ) { Text(if (checking) "Проверяю…" else "Сохранить и проверить") }
                     OutlinedButton(onClick = {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://eapi.stalcraft.net/registration.html")))
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://eapi.stalzone.com/docs")))
                     }) { Text("Как получить") }
                 }
                 status?.let { Text(it, color = if (it.endsWith("✓")) Good else Color(0xFFE57373)) }
